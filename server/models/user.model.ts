@@ -1,6 +1,6 @@
+require('dotenv').config();
 import mongoose, { Document, Model, Schema, } from 'mongoose'
-import bcrypt from "bcryptjs"
-
+import jwt from 'jsonwebtoken'
 const emailRegexPattern: RegExp = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export interface IUser extends Document {
@@ -14,10 +14,12 @@ export interface IUser extends Document {
   role: string,
   isVerified: Boolean,
   courses: Array<{ courseId: string }>;
-  comparePassword: (password: string) => Promise<boolean>;
+  // comparePassword: (password: string) => Promise<boolean>;
+  SignAccessToken: () => string,
+  SignRefreshToken: () => string,
 }
 
-const UserSchema: Schema<IUser> = new mongoose.Schema({
+const userSchema: Schema<IUser> = new mongoose.Schema({
   name: {
     type: String,
     required: [true, "Please enter your name "]
@@ -35,7 +37,7 @@ const UserSchema: Schema<IUser> = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: [true, "Please enter your password"],
+    // required: [true, "Please enter your password"], - social auth doesn't need password
     minLength: [6, "Password must be atleast 6 character"],
     select: false
   },
@@ -59,6 +61,17 @@ const UserSchema: Schema<IUser> = new mongoose.Schema({
   ],
 }, { timestamps: true })
 
-const userModel: Model<IUser> = mongoose.model("User", UserSchema);
+userSchema.methods.SignAccessToken = function () {
+  return jwt.sign({ id: this._id }, process.env.ACCESS_TOKEN || '', {
+    expiresIn: "5m"
+  });
+};
+userSchema.methods.SignRefreshToken = function () {
+  return jwt.sign({ id: this._id }, process.env.REFRESH_TOKEN || '', {
+    expiresIn: "7d"
+  });
+};
+
+const userModel: Model<IUser> = mongoose.model("User", userSchema);
 
 export default userModel;
